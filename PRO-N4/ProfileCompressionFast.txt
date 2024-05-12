@@ -1,0 +1,83 @@
+Timer unit: 1e-07 s
+
+Total time: 0.0037059 s
+File: D:\Coding\Current\prepoznava_pesca\System\CompressProfile.py
+Function: Compression at line 59
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    59                                           def Compression(video_frame, print_bits=False):
+    60         1      23926.0  23926.0     64.6      video_frame = cv2.resize(video_frame, (640, 360), interpolation=cv2.INTER_AREA)
+    61                                           
+    62                                               # convert frame to YCbCr
+    63         1       1979.0   1979.0      5.3      frame = cv2.cvtColor(video_frame, cv2.COLOR_BGR2YCrCb)
+    64                                           
+    65                                               # split frame into Y, Cb, Cr
+    66         1       4141.0   4141.0     11.2      Y, Cb, Cr = cv2.split(frame)
+    67                                           
+    68         1          5.0      5.0      0.0      if print_bits:
+    69                                                   # print bits
+    70                                                   print("Cb: ", bin(Cb[0][0]))
+    71                                                   print("Cr: ", bin(Cr[0][0]))
+    72                                           
+    73                                               # get 4 MSB bits from Cb and Cr
+    74         1       3162.0   3162.0      8.5      Cb = (Cb >> 4) << 4 # shift bits to MSB
+    75         1       1850.0   1850.0      5.0      Cr = Cr >> 4
+    76                                           
+    77         1          5.0      5.0      0.0      if print_bits:
+    78                                                   # print bits
+    79                                                   print("Cb: ", bin(Cb[0][0]))
+    80                                                   print("Cr: ", bin(Cr[0][0]))
+    81                                           
+    82                                               # merge Cb and Cr value into one byte
+    83         1       1518.0   1518.0      4.1      CbCr = Cb | Cr
+    84                                           
+    85         1          6.0      6.0      0.0      if print_bits:
+    86                                                   print("Y: ", bin(Y[0][0]))
+    87                                                   print("CbCr: ", bin(CbCr[0][0]))
+    88                                           
+    89                                               # merge Y and CbCr into one matrix
+    90         1        458.0    458.0      1.2      frame = cv2.merge([Y, CbCr])
+    91                                           
+    92         1          5.0      5.0      0.0      if print_bits:
+    93                                                   print("YCbCr: ", bin(frame[0][0][0]), bin(frame[0][0][1]))
+    94                                           
+    95         1          4.0      4.0      0.0      return frame
+
+Timer unit: 1e-07 s
+
+Total time: 0.0027582 s
+File: D:\Coding\Current\prepoznava_pesca\System\CompressProfile.py
+Function: Decompression at line 97
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    97                                           def Decompression(frame, print_bits=False):
+    98                                               # split frame into Y, CbCr
+    99         1       2298.0   2298.0      8.3      Y, CbCr = cv2.split(frame)
+   100                                           
+   101         1          3.0      3.0      0.0      if print_bits:
+   102                                                   print("Y: ", bin(Y[0][0]))
+   103                                                   print("CbCr: ", bin(CbCr[0][0]))
+   104                                           
+   105                                               # get first 4 bits from CbCr
+   106         1       2341.0   2341.0      8.5      Cb = (CbCr >> 4) << 4
+   107                                           
+   108                                               # get last 4 bits from CbCr
+   109         1       1023.0   1023.0      3.7      Cr = CbCr << 4
+   110                                           
+   111         1          3.0      3.0      0.0      if print_bits:
+   112                                                   print("Cb: ", bin(Cb[0][0]))
+   113                                                   print("Cr: ", bin(Cr[0][0]))
+   114                                           
+   115                                               # merge Y, Cb, Cr into one matrix
+   116         1       1761.0   1761.0      6.4      video_frame = cv2.merge([Y, Cb, Cr])
+   117                                           
+   118         1          3.0      3.0      0.0      if print_bits:
+   119                                                   print("Y: ", bin(video_frame[0][0][0]))
+   120                                                   print("Cb: ", bin(video_frame[0][0][1]))
+   121                                                   print("Cr: ", bin(video_frame[0][0][2]))
+   122                                           
+   123         1      12947.0  12947.0     46.9      video_frame = cv2.resize(video_frame, (1920, 1080), interpolation=cv2.INTER_LINEAR)
+   124                                           
+   125         1       7203.0   7203.0     26.1      return cv2.cvtColor(video_frame, cv2.COLOR_YCrCb2BGR)

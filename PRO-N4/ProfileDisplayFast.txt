@@ -1,0 +1,136 @@
+Timer unit: 1e-07 s
+
+Total time: 8.08263 s
+File: D:\Coding\Current\prepoznava_pesca\System\Detection\MUL_Detect.py
+Function: Display at line 135
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   135                                           def Display(InputQueue, lock, COMPRESS):
+   136                                               # Detection properties
+   137         1        826.0    826.0      0.0      parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+   138         1        151.0    151.0      0.0      weights_path = os.path.join(parent_dir, "yolov8x.pt")
+   139         1          3.0      3.0      0.0      detection_width = 1280
+   140         1          3.0      3.0      0.0      detection_height = 720
+   141         1          2.0      2.0      0.0      width = 1920
+   142         1          3.0      3.0      0.0      height = 1080
+   143         1          7.0      7.0      0.0      width_factor = width / detection_width
+   144         1          3.0      3.0      0.0      height_factor = height / detection_height
+   145                                           
+   146         1          3.0      3.0      0.0      available_devices = ['CPU']
+   147         1     338726.0 338726.0      0.4      if torch.cuda.is_available():
+   148         1      21726.0  21726.0      0.0          available_devices += [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]
+   149                                           
+   150         1        179.0    179.0      0.0      print("Available devices: ", available_devices)
+   151                                           
+   152                                               # Load YOLOv8 model
+   153         1    2428663.0    2e+06      3.0      model = YOLO(weights_path)
+   154                                           
+   155         1          5.0      5.0      0.0      decom_time_arr = []
+   156         1          4.0      4.0      0.0      detection_time_arr = []
+   157                                           
+   158                                               # Kafka
+   159         1          5.0      5.0      0.0      topic = 'frame_detection'
+   160                                           
+   161         1          3.0      3.0      0.0      try:
+   162         2    1313206.0 656603.0      1.6          producer = kafka.KafkaProducer(bootstrap_servers='localhost:9092',
+   163         1         11.0     11.0      0.0                                     value_serializer=lambda v: json.dumps(v).encode('utf-8'))
+   164                                               except kafka.errors.NoBrokersAvailable:
+   165                                                   print("Kafka error: No brokers available")
+   166                                                   return
+   167                                           
+   168         1         63.0     63.0      0.0      fpsReader = FPS() 
+   169                                           
+   170         1         84.0     84.0      0.0      b = np.frombuffer(InputQueue, dtype=np.uint8)
+   171                                           
+   172         1          4.0      4.0      0.0      if not COMPRESS:
+   173                                                   b = b.reshape((height, width, 3))
+   174                                                   # b = b.reshape((width, height, 3))
+   175                                               else:
+   176         1         30.0     30.0      0.0          b = b.reshape((360, 640, 2))
+   177                                           
+   178                                               # File to save messages
+   179         1        107.0    107.0      0.0      output_file = "kafka_detect_" + datetime.fromtimestamp(time.time()).date().__str__() + ".txt"
+   180         1       1964.0   1964.0      0.0      file = open(output_file, 'w')
+   181                                           
+   182         1          4.0      4.0      0.0      prev_frame = None
+   183       159       2135.0     13.4      0.0      while True:
+   184                                                   # Read frame from shared memory
+   185       159       2008.0     12.6      0.0          if lock is not None:
+   186       159       6816.0     42.9      0.0              if lock.acquire():
+   187       159      13629.0     85.7      0.0                  frame = b[:]
+   188       159       3059.0     19.2      0.0                  lock.release()
+   189                                                   else:
+   190                                                       frame = b[:]
+   191                                           
+   192       159       3504.0     22.0      0.0          decom_time_start = time.time()
+   193                                                   # Decompress frame
+   194       159       1199.0      7.5      0.0          if COMPRESS:
+   195       159    6516687.0  40985.5      8.1              frame = Decompression(frame, print_bits=False)
+   196                                           
+   197       159       3841.0     24.2      0.0          decom_time_diff = time.time() - decom_time_start
+   198       159       2947.0     18.5      0.0          decom_time_arr.append(decom_time_diff)
+   199                                           
+   200       159       1015.0      6.4      0.0          detection_time_start = time.time()
+   201       159    3489144.0  21944.3      4.3          frame_small = cv2.resize(frame, (detection_width, detection_height))
+   202       159   48942797.0 307816.3     60.6          results = model.predict(source=frame_small, conf=0.4, classes=0, verbose=False, device=0, retina_masks=True)[0].cpu().numpy()
+   203       159       2072.0     13.0      0.0          detection_time_diff = time.time() - detection_time_start
+   204       159       1340.0      8.4      0.0          detection_time_arr.append(detection_time_diff)
+   205                                           
+   206       159        612.0      3.8      0.0          data = []
+   207                                           
+   208       159      29939.0    188.3      0.0          for param in results:
+   209                                                       for box in param.boxes.data:
+   210                                                           x1, y1, x2, y2 = int(box[0] * width_factor), int(box[1] * height_factor), int(box[2] * width_factor), int(box[3] * height_factor)
+   211                                           
+   212                                                           cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+   213                                           
+   214                                                           height = abs(y2 - y1)
+   215                                                           width = abs(x2 - x1)
+   216                                                           area = height * width
+   217                                                           origin = (min(x1, x2) + int(width // 2), max(y2, y1))
+   218                                                           # origin2 = (max(x2, x1), min(y1, y2) + int(height // 2))
+   219                                                           cv2.circle(frame, origin, 5, (255, 0, 0), -1)
+   220                                                           # cv2.circle(frame, origin2, 5, (255, 0, 0), -1)
+   221                                           
+   222                                                           data_1 = {
+   223                                                               "BoxCords": (x1, y1, x2, y2),
+   224                                                               "Height": height,
+   225                                                               "Width": width,
+   226                                                               "Area": area,
+   227                                                               "Origin": origin
+   228                                                           }
+   229                                           
+   230                                                           data.append(data_1)
+   231                                           
+   232       159      21543.0    135.5      0.0          print(data)
+   233                                           
+   234       159       3935.0     24.7      0.0          TIMESTAMP = round(time.time() * 1000)
+   235       159     631576.0   3972.2      0.8          future = producer.send(topic, data, timestamp_ms=TIMESTAMP)
+   236                                           
+   237       159       1948.0     12.3      0.0          data2 = {
+   238       159        652.0      4.1      0.0              'timestamp': TIMESTAMP,
+   239       159        555.0      3.5      0.0              'message': data
+   240                                                   }
+   241       159      41153.0    258.8      0.1          file.write(json.dumps(data2) + '\n')
+   242                                           
+   243                                                   # Wait until message is delivered to Kafka
+   244       159        591.0      3.7      0.0          try:
+   245       159    3087274.0  19416.8      3.8              rm = future.get(timeout=10)
+   246                                                   except kafka.KafkaError:
+   247                                                       print("Kafka error")
+   248                                           
+   249       159     150364.0    945.7      0.2          fpsReader.update(frame, pos=(50, 120), scale=5, thickness=5)
+   250                                           
+   251                                                   # Display frame
+   252                                                   # cv2.imshow('Video Consumer', cv2.resize(frame, (640, 360)))
+   253       159    4718409.0  29675.5      5.8          cv2.imshow('Video Consumer', cv2.resize(frame, (1280, 720)))
+   254                                                   # cv2.imshow('Video Consumer', cv2.resize(frame, (1920, 1080)))
+   255                                           
+   256                                                   # Stop loop
+   257       159    9036368.0  56832.5     11.2          if cv2.waitKey(1) & 0xFF == ord('q'):
+   258         1       1224.0   1224.0      0.0              print("Average decompression time: ", np.mean(decom_time_arr))
+   259         1        444.0    444.0      0.0              print("Average detection time: ", np.mean(detection_time_arr))
+   260         1          5.0      5.0      0.0              break
+   261                                           
+   262         1       1682.0   1682.0      0.0      file.close()
