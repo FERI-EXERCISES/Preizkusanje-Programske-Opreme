@@ -1,3 +1,6 @@
 [submodule "PRO-N5"]
 	path = PRO-N5
 	url = https://github.com/SimonPlazar/PRO-GitHooks.git
+[submodule "PRO-N6"]
+	path = PRO-N6
+	url = https://github.com/SimonPlazar/PRO-SprotnaIntegracija.git
